@@ -9,7 +9,7 @@ import GrammarSuggestionsPage from '@/pages/GrammarSuggestionsPage';
 import VisualizationPage from '@/pages/VisualizationPage';
 
 function App() {
-  const basename = (window as any).__ROUTER_BASE__ ?? '/';
+  const basename = new URL(document.baseURI).pathname.replace(/\/$/, '') || '/';
 
   return (
     <ErrorBoundary fallbackTitle="Application Error">
