@@ -21,32 +21,32 @@ const AppLayout: React.FC = () => {
         Skip to content
       </a>
       <header className="border-b bg-background">
-        <div className="container mx-auto px-6 py-2">
+        <div className="container mx-auto px-3 hd:px-6 py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg font-semibold text-foreground">
+            <div className="flex items-center gap-2 hd:gap-4 min-w-0">
+              <h1 className="text-base hd:text-lg font-semibold text-foreground shrink-0">
                 AST Visualizer
               </h1>
-              
+
               {isVisualizePage && (
                 <>
-                  <div className="h-5 w-px bg-border" />
+                  <div className="h-5 w-px bg-border shrink-0" />
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/grammar/code')}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
+                    className="gap-1 hd:gap-2 text-muted-foreground hover:text-foreground px-1 hd:px-3"
                   >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Editor
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+                    <span className="hidden hd:inline">Back to Editor</span>
                   </Button>
                 </>
               )}
-              
+
               {isGrammarPage && (
                 <>
-                  <div className="h-5 w-px bg-border" />
-                  <span className="text-sm text-muted-foreground">
+                  <div className="hidden hd:block h-5 w-px bg-border" />
+                  <span className="hidden hd:inline text-sm text-muted-foreground">
                     Grammar Editor
                   </span>
                 </>

@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, AlertCircle, Network, Share2, Copy, Check, Undo2, Redo2, Zap, Code2 } from 'lucide-react';
+import { ArrowRight, AlertCircle, Network, Share2, Copy, Check, Undo2, Redo2, Zap, Code2, BookOpen } from 'lucide-react';
 import { useGrammar } from '@/context/GrammarContext';
 import { exampleGrammars } from '@/data/examples';
 import { validateGrammar } from '@/lib/parser';
@@ -112,54 +112,60 @@ const GrammarEditorLayout: React.FC = () => {
     <>
       {headerActions && createPortal(
         <>
-          <div className="flex items-center gap-1 mr-2 border-r pr-2">
+          <div className="flex items-center gap-1 hd:mr-2 hd:border-r hd:pr-2">
             <Button
               onClick={undo}
               size="sm"
               variant="ghost"
-              className="gap-1"
+              className="gap-1 px-2 hd:px-3"
               disabled={!canUndo}
               title="Undo (Cmd/Ctrl+Z)"
             >
-              <Undo2 className="h-4 w-4" />
-              Undo
+              <Undo2 className="h-4 w-4 shrink-0" />
+              <span className="hidden hd:inline">Undo</span>
             </Button>
             <Button
               onClick={redo}
               size="sm"
               variant="ghost"
-              className="gap-1"
+              className="gap-1 px-2 hd:px-3"
               disabled={!canRedo}
               title="Redo (Cmd/Ctrl+Shift+Z)"
             >
-              <Redo2 className="h-4 w-4" />
-              Redo
+              <Redo2 className="h-4 w-4 shrink-0" />
+              <span className="hidden hd:inline">Redo</span>
             </Button>
           </div>
           <Button
             onClick={() => setShowTutorial(true)}
             size="sm"
             variant="ghost"
+            className="gap-1 px-2 hd:px-3"
+            title="Tutorial"
           >
-            Tutorial
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="hidden hd:inline">Tutorial</span>
           </Button>
           <Button
             onClick={handleShare}
             size="sm"
             variant="ghost"
-            className="gap-1.5"
+            className="gap-1.5 px-2 hd:px-3"
             disabled={!grammarText.trim()}
+            title="Share"
           >
-            <Share2 className="h-4 w-4" />
-            Share
+            <Share2 className="h-4 w-4 shrink-0" />
+            <span className="hidden hd:inline">Share</span>
           </Button>
           <Button
             onClick={handleContinue}
             size="sm"
             disabled={!grammarText.trim()}
+            className="gap-1 px-2 hd:px-3"
+            title="Visualize"
           >
-            Visualize
-            <ArrowRight className="h-4 w-4 ml-1" />
+            <span className="hidden hd:inline">Visualize</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
           </Button>
         </>,
         headerActions
@@ -174,8 +180,8 @@ const GrammarEditorLayout: React.FC = () => {
             </Alert>
           )}
 
-          <div className="flex items-center gap-3 flex-none">
-            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          <div className="flex items-center gap-2 sm:gap-3 flex-none">
+            <label className="hidden sm:block text-sm font-medium text-muted-foreground whitespace-nowrap">
               Example:
             </label>
             <Select onValueChange={handleExampleSelect}>
@@ -187,7 +193,7 @@ const GrammarEditorLayout: React.FC = () => {
                   <SelectItem key={example.id} value={example.id}>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{example.name}</span>
-                      <span className="text-xs text-muted-foreground">- {example.description}</span>
+                      <span className="hidden sm:inline text-xs text-muted-foreground">- {example.description}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -199,9 +205,9 @@ const GrammarEditorLayout: React.FC = () => {
             grammarValidation?.valid ? 'border-green-500/50' :
             grammarValidation?.error ? 'border-red-500/50' : ''
           }`}>
-            <CardHeader className="pb-2 flex-none">
+            <CardHeader className="pb-2 flex-none px-3 sm:px-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Ohm.js Grammar</CardTitle>
+                <CardTitle className="hidden sm:block text-base">Ohm.js Grammar</CardTitle>
                 <div className="flex items-center gap-2" role="status" aria-live="polite">
                   {grammarValidation?.valid && (
                     <span className="text-xs text-green-600 dark:text-green-400">
@@ -214,25 +220,28 @@ const GrammarEditorLayout: React.FC = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-2 flex-1 flex flex-col overflow-hidden min-h-0 gap-3">
+            <CardContent className="pt-2 flex-1 flex flex-col overflow-hidden min-h-0 gap-3 px-3 sm:px-6">
               <div className="flex border-b flex-none">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path;
-                  
+                  const Icon = item.icon;
+
                   return (
                     <NavLink
                       key={item.path}
                       to={item.path}
                       className={`
-                        px-3 py-1.5 text-sm font-medium transition-colors
+                        flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm font-medium transition-colors
                         border-b-2 -mb-[1px]
-                        ${isActive 
-                          ? 'border-primary text-foreground' 
+                        ${isActive
+                          ? 'border-primary text-foreground'
                           : 'border-transparent text-muted-foreground hover:text-foreground'
                         }
                       `}
                     >
-                      {item.label}
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="hidden sm:inline">{item.label}</span>
+                      <span className="sm:hidden">{item.label === 'Dependencies' ? 'Deps' : item.label}</span>
                     </NavLink>
                   );
                 })}

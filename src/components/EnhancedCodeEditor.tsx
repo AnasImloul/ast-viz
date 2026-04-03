@@ -75,7 +75,7 @@ export const EnhancedCodeEditor: React.FC<EnhancedCodeEditorProps> = ({
           <ChevronDown className="w-4 h-4" />
           Expand All
         </Button>
-        <span className="text-xs text-muted-foreground ml-2">
+        <span className="hidden sm:inline text-xs text-muted-foreground ml-2">
           Click the gutter or use Ctrl+Shift+[ / ] to fold/unfold
         </span>
       </div>
