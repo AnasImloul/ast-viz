@@ -3,28 +3,21 @@ import { GrammarProvider } from '@/context/GrammarContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import AppLayout from '@/layouts/AppLayout';
 import GrammarEditorLayout from '@/pages/GrammarEditorLayout';
-import GrammarVisualBuilderPage from '@/pages/GrammarVisualBuilderPage';
 import GrammarCodeEditorPage from '@/pages/GrammarCodeEditorPage';
 import GrammarDependenciesPage from '@/pages/GrammarDependenciesPage';
 import GrammarSuggestionsPage from '@/pages/GrammarSuggestionsPage';
 import VisualizationPage from '@/pages/VisualizationPage';
 
 function App() {
+  const basename = (window as any).__ROUTER_BASE__ ?? '/';
+
   return (
     <ErrorBoundary fallbackTitle="Application Error">
       <GrammarProvider>
-        <Router>
+        <Router basename={basename}>
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/grammar" element={<GrammarEditorLayout />}>
-                <Route 
-                  path="builder" 
-                  element={
-                    <ErrorBoundary fallbackTitle="Visual Builder Error">
-                      <GrammarVisualBuilderPage />
-                    </ErrorBoundary>
-                  } 
-                />
                 <Route 
                   path="code" 
                   element={
@@ -59,8 +52,8 @@ function App() {
                 } 
               />
             </Route>
-            <Route path="/" element={<Navigate to="/grammar/builder" replace />} />
-            <Route path="*" element={<Navigate to="/grammar/builder" replace />} />
+            <Route path="/" element={<Navigate to="/grammar/code" replace />} />
+            <Route path="*" element={<Navigate to="/grammar/code" replace />} />
           </Routes>
         </Router>
       </GrammarProvider>

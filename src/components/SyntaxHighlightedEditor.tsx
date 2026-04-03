@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import type { ASTNode } from '@/types/ast';
 
 interface SyntaxHighlightedEditorProps {
@@ -48,8 +48,7 @@ const DEFAULT_COLOR_SCHEME: ColorScheme = {
  */
 const getRuleColor = (
   node: ASTNode,
-  colorScheme: ColorScheme,
-  depth: number = 0
+  colorScheme: ColorScheme
 ): string => {
   // Validate input
   if (!node || typeof node !== 'object' || !node.name) {
@@ -127,7 +126,7 @@ const extractHighlights = (
 ): HighlightRange[] => {
   // Validate node
   if (!node || typeof node !== 'object') {
-    console.warn('[SyntaxHighlighter] Invalid node encountered:', node);
+    if (import.meta.env.DEV) console.warn('[SyntaxHighlighter] Invalid node encountered:', node);
     return ranges;
   }
   
@@ -145,19 +144,19 @@ const extractHighlights = (
   
   // Validate interval indices
   if (typeof startIdx !== 'number' || typeof endIdx !== 'number') {
-    console.warn('[SyntaxHighlighter] Invalid interval indices:', node.interval, 'for node:', node.name);
+    if (import.meta.env.DEV) console.warn('[SyntaxHighlighter] Invalid interval indices:', node.interval, 'for node:', node.name);
     return ranges;
   }
   
   // Validate interval bounds
   if (startIdx < 0 || endIdx < startIdx) {
-    console.warn('[SyntaxHighlighter] Invalid interval range:', startIdx, '-', endIdx, 'for node:', node.name);
+    if (import.meta.env.DEV) console.warn('[SyntaxHighlighter] Invalid interval range:', startIdx, '-', endIdx, 'for node:', node.name);
     return ranges;
   }
   
   // Validate against text length
   if (endIdx > textLength) {
-    console.warn('[SyntaxHighlighter] Interval exceeds text length:', endIdx, '>', textLength, 'for node:', node.name);
+    if (import.meta.env.DEV) console.warn('[SyntaxHighlighter] Interval exceeds text length:', endIdx, '>', textLength, 'for node:', node.name);
     // Don't return - just clamp it
   }
   
@@ -177,7 +176,7 @@ const extractHighlights = (
       start: Math.max(0, startIdx),
       end: Math.min(endIdx, textLength),
       ruleName: node.name,
-      color: getRuleColor(node, colorScheme, depth),
+      color: getRuleColor(node, colorScheme),
     });
     return ranges; // Don't recurse into children for semantic tokens
   }
@@ -188,7 +187,7 @@ const extractHighlights = (
       start: Math.max(0, startIdx),
       end: Math.min(endIdx, textLength),
       ruleName: node.name || '_unknown',
-      color: getRuleColor(node, colorScheme, depth),
+      color: getRuleColor(node, colorScheme),
     });
     return ranges;
   }
@@ -288,6 +287,10 @@ export const SyntaxHighlightedEditor: React.FC<SyntaxHighlightedEditorProps> = (
   selectedInterval,
   colorScheme = DEFAULT_COLOR_SCHEME,
 }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+  const intervalHighlightRef = useRef<HTMLDivElement>(null);
+  
   // Extract and merge highlight ranges from AST
   const highlightedContent = useMemo(() => {
     if (!ast || !value) {
@@ -299,55 +302,94 @@ export const SyntaxHighlightedEditor: React.FC<SyntaxHighlightedEditorProps> = (
       const merged = mergeRanges(ranges);
       return createHighlightedContent(value, merged);
     } catch (error) {
-      console.error('[SyntaxHighlighter] Error during highlighting:', error);
+      if (import.meta.env.DEV) console.error('[SyntaxHighlighter] Error during highlighting:', error);
       return null; // Gracefully degrade to no highlighting
     }
   }, [ast, value, colorScheme]);
+  
+  // Sync scroll position between textarea and overlays
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    const highlight = highlightRef.current;
+    const intervalHighlight = intervalHighlightRef.current;
+    
+    if (!textarea) return;
+    
+    const syncScroll = () => {
+      const { scrollTop, scrollLeft } = textarea;
+      
+      // Sync by transforming the inner content
+      if (highlight) {
+        const inner = highlight.firstElementChild as HTMLElement;
+        if (inner) {
+          inner.style.transform = `translate(-${scrollLeft}px, -${scrollTop}px)`;
+        }
+      }
+      if (intervalHighlight) {
+        const inner = intervalHighlight.firstElementChild as HTMLElement;
+        if (inner) {
+          inner.style.transform = `translate(-${scrollLeft}px, -${scrollTop}px)`;
+        }
+      }
+    };
+    
+    // Initial sync
+    syncScroll();
+    
+    textarea.addEventListener('scroll', syncScroll);
+    return () => textarea.removeEventListener('scroll', syncScroll);
+  }, [highlightedContent, selectedInterval]); // Re-sync when content changes
   
   return (
     <div className={`relative w-full h-full ${className}`}>
       {/* Highlighted overlay */}
       {highlightedContent && (
         <div
-          className="absolute inset-0 pointer-events-none overflow-auto font-mono text-sm whitespace-pre-wrap break-words px-3 py-2"
+          ref={highlightRef}
+          className="absolute inset-0 pointer-events-none overflow-hidden font-mono text-sm"
           style={{
             lineHeight: '1.5',
           }}
         >
-          {highlightedContent}
+          <div className="whitespace-pre-wrap break-words px-3 py-2" style={{ willChange: 'transform' }}>
+            {highlightedContent}
+          </div>
         </div>
       )}
       
       {/* Selected interval highlight */}
       {selectedInterval && (
         <div
-          className="absolute inset-0 pointer-events-none overflow-auto font-mono text-sm whitespace-pre-wrap break-words pl-3 pr-3 py-2"
+          ref={intervalHighlightRef}
+          className="absolute inset-0 pointer-events-none overflow-hidden font-mono text-sm"
           style={{
             lineHeight: '1.5',
-            paddingLeft: '0.75rem',
           }}
         >
-          <span style={{ color: 'transparent' }}>
-            {value.substring(0, selectedInterval.startIdx)}
-          </span>
-          <mark
-            className="text-transparent"
-            style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-              boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.6)',
-              borderRadius: '2px',
-              padding: 0,
-              boxDecorationBreak: 'clone',
-              WebkitBoxDecorationBreak: 'clone',
-            }}
-          >
-            {value.substring(selectedInterval.startIdx, selectedInterval.endIdx)}
-          </mark>
+          <div className="whitespace-pre-wrap break-words px-3 py-2" style={{ willChange: 'transform' }}>
+            <span style={{ color: 'transparent' }}>
+              {value.substring(0, selectedInterval.startIdx)}
+            </span>
+            <mark
+              className="text-transparent"
+              style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.6)',
+                borderRadius: '2px',
+                padding: 0,
+                boxDecorationBreak: 'clone',
+                WebkitBoxDecorationBreak: 'clone',
+              }}
+            >
+              {value.substring(selectedInterval.startIdx, selectedInterval.endIdx)}
+            </mark>
+          </div>
         </div>
       )}
       
       {/* Actual textarea (transparent text when highlighted) */}
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
@@ -355,6 +397,7 @@ export const SyntaxHighlightedEditor: React.FC<SyntaxHighlightedEditorProps> = (
         placeholder={placeholder}
         className={`
           w-full h-full font-mono text-sm resize-none bg-transparent px-3 py-2
+          border-0 outline-none focus:outline-none focus:ring-0
           ${highlightedContent ? 'text-transparent caret-blue-500' : 'text-foreground'}
         `}
         style={{

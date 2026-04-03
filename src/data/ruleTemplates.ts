@@ -58,7 +58,7 @@ export const ruleTemplates: RuleTemplate[] = [
     description: 'Text in double quotes (e.g., "hello")',
     category: 'string',
     ruleName: 'String',
-    alternatives: ['"\\\"" stringChar* "\\""'],
+    alternatives: ['"' + '\\"' + '" stringChar* "' + '\\"' + '"'],
     icon: '📝',
     // Dependencies will be resolved by reference after array is fully defined
   },

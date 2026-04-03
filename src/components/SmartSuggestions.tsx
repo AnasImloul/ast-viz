@@ -100,7 +100,7 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
         )}
       </div>
 
-      <ScrollArea className="max-h-[400px]">
+      <ScrollArea className="max-h-[calc(100vh-20rem)]">
         <div className="space-y-2 pr-4">
           {visibleSuggestions.map((suggestion) => {
             const Icon = getIcon(suggestion.type);

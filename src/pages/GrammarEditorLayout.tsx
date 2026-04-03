@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -10,8 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, Code2, Sparkles, Lightbulb, CheckCircle2, Wand2, AlertCircle, Network, BookOpen, Zap, Share2, Copy, Check, Undo2, Redo2 } from 'lucide-react';
+import { ArrowRight, AlertCircle, Network, Share2, Copy, Check, Undo2, Redo2, Zap, Code2 } from 'lucide-react';
 import { useGrammar } from '@/context/GrammarContext';
 import { exampleGrammars } from '@/data/examples';
 import { validateGrammar } from '@/lib/parser';
@@ -31,6 +38,7 @@ const GrammarEditorLayout: React.FC = () => {
     canRedo,
     undo,
     redo,
+    getGrammarAsText,
   } = useGrammar();
 
   const [grammarValidation, setGrammarValidation] = useState<{ valid: boolean; error?: string } | null>(null);
@@ -39,39 +47,39 @@ const GrammarEditorLayout: React.FC = () => {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Validate grammar in real-time
-  useEffect(() => {
-    if (!grammar.trim()) {
+  useLayoutEffect(() => {
+    const grammarText = getGrammarAsText();
+    if (!grammarText.trim()) {
       setGrammarValidation(null);
       return;
     }
 
     const timeoutId = setTimeout(() => {
-      const validation = validateGrammar(grammar);
+      const validation = validateGrammar(grammarText);
       setGrammarValidation(validation);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [grammar]);
+  }, [grammar, getGrammarAsText]);
 
   const handleExampleSelect = (exampleId: string) => {
     const example = exampleGrammars.find((ex) => ex.id === exampleId);
     if (example) {
       loadExample(example);
-      // Navigate to visualization page after loading example
-      setTimeout(() => navigate('/visualize'), 100);
     }
   };
 
   const handleContinue = () => {
-    if (grammarValidation?.valid || grammar.trim()) {
+    const grammarText = getGrammarAsText();
+    if (grammarValidation?.valid || grammarText.trim()) {
       navigate('/visualize');
     }
   };
 
   const handleShare = () => {
+    const grammarText = getGrammarAsText();
     const url = encodeStateToUrl({
-      grammar,
+      grammar: grammarText,
       programText: programText || undefined,
     });
     setShareUrl(url);
@@ -89,22 +97,19 @@ const GrammarEditorLayout: React.FC = () => {
     }
   };
 
-  const grammarLineCount = grammar.split('\n').length;
+  const grammarText = getGrammarAsText();
+  const grammarLineCount = grammarText.split('\n').length;
 
-  // Define navigation items
   const navItems = [
-    { path: '/grammar/builder', label: 'Visual Builder', icon: Wand2 },
-    { path: '/grammar/code', label: 'Code Editor', icon: Code2 },
+    { path: '/grammar/code', label: 'Code', icon: Code2 },
     { path: '/grammar/dependencies', label: 'Dependencies', icon: Network },
     { path: '/grammar/suggestions', label: 'Suggestions', icon: Zap },
   ];
 
-  // Render header actions via portal
   const headerActions = document.getElementById('header-actions');
 
   return (
     <>
-      {/* Portal: Render actions into header */}
       {headerActions && createPortal(
         <>
           <div className="flex items-center gap-1 mr-2 border-r pr-2">
@@ -135,17 +140,15 @@ const GrammarEditorLayout: React.FC = () => {
             onClick={() => setShowTutorial(true)}
             size="sm"
             variant="ghost"
-            className="gap-2"
           >
-            <BookOpen className="h-4 w-4" />
             Tutorial
           </Button>
           <Button
             onClick={handleShare}
             size="sm"
             variant="ghost"
-            className="gap-2"
-            disabled={!grammar.trim()}
+            className="gap-1.5"
+            disabled={!grammarText.trim()}
           >
             <Share2 className="h-4 w-4" />
             Share
@@ -153,90 +156,67 @@ const GrammarEditorLayout: React.FC = () => {
           <Button
             onClick={handleContinue}
             size="sm"
-            className="gap-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 shadow-lg shadow-purple-500/20"
-            disabled={!grammar.trim()}
+            disabled={!grammarText.trim()}
           >
             Visualize
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </>,
         headerActions
       )}
 
-      {/* Content */}
-      <main className="flex-1 overflow-auto flex flex-col">
-        <div className="container mx-auto px-4 py-4 space-y-4">
-          {/* Error Alert */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-4 py-3 gap-3">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="flex-none">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Example Selector */}
-          <Card className="border-2 hover:border-primary/50 transition-all duration-300 shadow-sm hover:shadow-md">
-            <CardHeader className="pb-3 bg-gradient-to-r from-indigo-500/5 to-purple-500/5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle className="text-base">Example Grammars</CardTitle>
-              </div>
-              <CardDescription className="text-sm">
-                Load a pre-defined grammar to get started quickly
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <Select onValueChange={handleExampleSelect}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose an example grammar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {exampleGrammars.map((example) => (
-                    <SelectItem key={example.id} value={example.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{example.name}</span>
-                        <span className="text-xs text-muted-foreground">- {example.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-
-          {/* Grammar Input */}
-          <Card className={`border-2 transition-all duration-300 ${
-            grammarValidation?.valid ? 'border-green-500/50' :
-            grammarValidation?.error ? 'border-red-500/50' : 'border-muted hover:border-primary/30'
-          }`}>
-            <CardHeader className="pb-3 bg-gradient-to-r from-blue-500/5 to-purple-500/5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Code2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  <CardTitle className="text-base">Ohm.js Grammar</CardTitle>
-                </div>
-                <div className="flex items-center gap-2">
-                  {grammarValidation?.valid && (
-                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 px-2 py-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Valid
+          <div className="flex items-center gap-3 flex-none">
+            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+              Example:
+            </label>
+            <Select onValueChange={handleExampleSelect}>
+              <SelectTrigger className="w-full max-w-md">
+                <SelectValue placeholder="Choose an example grammar..." />
+              </SelectTrigger>
+              <SelectContent>
+                {exampleGrammars.map((example) => (
+                  <SelectItem key={example.id} value={example.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{example.name}</span>
+                      <span className="text-xs text-muted-foreground">- {example.description}</span>
                     </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Card className={`flex-1 flex flex-col overflow-hidden min-h-0 border transition-colors ${
+            grammarValidation?.valid ? 'border-green-500/50' :
+            grammarValidation?.error ? 'border-red-500/50' : ''
+          }`}>
+            <CardHeader className="pb-2 flex-none">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Ohm.js Grammar</CardTitle>
+                <div className="flex items-center gap-2" role="status" aria-live="polite">
+                  {grammarValidation?.valid && (
+                    <span className="text-xs text-green-600 dark:text-green-400">
+                      Valid
+                    </span>
                   )}
-                  <span className="px-2 py-1 bg-background rounded-md border text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {grammarLineCount} lines
                   </span>
                 </div>
               </div>
-              <CardDescription className="text-sm flex items-center gap-1.5">
-                <Lightbulb className="h-3.5 w-3.5" />
-                Define your grammar rules - validation happens in real-time
-              </CardDescription>
             </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              {/* Navigation Links */}
-              <div className="flex border-b">
+            <CardContent className="pt-2 flex-1 flex flex-col overflow-hidden min-h-0 gap-3">
+              <div className="flex border-b flex-none">
                 {navItems.map((item) => {
-                  const Icon = item.icon;
                   const isActive = location.pathname === item.path;
                   
                   return (
@@ -244,26 +224,26 @@ const GrammarEditorLayout: React.FC = () => {
                       key={item.path}
                       to={item.path}
                       className={`
-                        flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors
+                        px-3 py-1.5 text-sm font-medium transition-colors
                         border-b-2 -mb-[1px]
                         ${isActive 
-                          ? 'border-primary text-primary bg-primary/5' 
-                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'border-primary text-foreground' 
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
                         }
                       `}
                     >
-                      <Icon className="h-4 w-4" />
                       {item.label}
                     </NavLink>
                   );
                 })}
               </div>
 
-              {/* Outlet for nested routes */}
-              <Outlet />
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                <Outlet />
+              </div>
 
               {grammarValidation?.error && (
-                <Alert variant="destructive" className="animate-in slide-in-from-top-1">
+                <Alert variant="destructive" aria-live="assertive" className="flex-none">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{grammarValidation.error}</AlertDescription>
                 </Alert>
@@ -272,29 +252,17 @@ const GrammarEditorLayout: React.FC = () => {
           </Card>
         </div>
 
-        {/* Tutorial Modal */}
         {showTutorial && <GrammarTutorial onClose={() => setShowTutorial(false)} />}
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl border-2 shadow-2xl">
-            <CardHeader className="border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
-                    <Share2 className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle>Share Your Grammar</CardTitle>
-                    <CardDescription>
-                      Share a snapshot of your grammar with others
-                    </CardDescription>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
+        <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Share Grammar</DialogTitle>
+              <DialogDescription>
+                Share a snapshot of your grammar with others.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Shareable Link</label>
                 <div className="flex gap-2">
@@ -307,12 +275,12 @@ const GrammarEditorLayout: React.FC = () => {
                   <Button
                     onClick={handleCopyUrl}
                     variant={copied ? "default" : "outline"}
-                    className="gap-2"
+                    className="gap-1.5"
                   >
                     {copied ? (
                       <>
                         <Check className="h-4 w-4" />
-                        Copied!
+                        Copied
                       </>
                     ) : (
                       <>
@@ -324,31 +292,15 @@ const GrammarEditorLayout: React.FC = () => {
                 </div>
               </div>
 
-              <Alert>
-                <Sparkles className="h-4 w-4" />
-                <AlertDescription>
-                  This creates a snapshot of your current grammar{programText ? ' and program text' : ''}. 
-                  Recipients can view and make their own edits, but changes won't sync between users.
-                  All data is encoded in the URL - nothing is stored on a server.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  onClick={() => setShowShareModal(false)}
-                  variant="outline"
-                >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <p className="text-xs text-muted-foreground">
+                All data is encoded in the URL -- nothing is stored on a server.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </>
   );
 };
 
 export default GrammarEditorLayout;
-

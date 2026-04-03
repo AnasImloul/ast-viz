@@ -3,16 +3,13 @@ import { useGrammar } from '@/context/GrammarContext';
 import { RuleDependencyGraph } from '@/components/RuleDependencyGraph';
 
 const GrammarDependenciesPage: React.FC = () => {
-  const { grammar } = useGrammar();
+  const { getGrammarAsText } = useGrammar();
 
   return (
-    <div className="mt-3">
-      <div className="h-[500px] border-2 rounded-lg bg-slate-50 dark:bg-slate-950">
-        <RuleDependencyGraph grammarText={grammar} />
-      </div>
+    <div className="flex-1 min-h-0 border rounded-lg bg-muted/30">
+      <RuleDependencyGraph grammarText={getGrammarAsText()} />
     </div>
   );
 };
 
 export default GrammarDependenciesPage;
-

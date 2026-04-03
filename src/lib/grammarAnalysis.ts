@@ -28,7 +28,8 @@ export interface GrammarAnalysis {
 
 const BUILTIN_RULES = new Set([
   'digit', 'letter', 'alnum', 'space', 'any', 'lower', 'upper',
-  'hexDigit', 'listOf', 'nonemptyListOf', 'applySyntactic'
+  'hexDigit', 'listOf', 'nonemptyListOf', 'applySyntactic',
+  'end', 'caseInsensitive'
 ]);
 
 /**
@@ -60,18 +61,22 @@ export function extractRules(grammarText: string): string[] {
 /**
  * Parse rule alternatives and extract referenced rules
  * Detects both uppercase (structural) and lowercase (lexical) rule references
+ * Handles Ohm.js special constructs like listOf<Rule, ",">, Rule<Args>, etc.
  */
 function extractReferencesFromDefinition(definition: string, allRules: Set<string>): string[] {
   const references: string[] = [];
   
-  // Remove strings (quoted content)
-  let cleaned = definition.replace(/"[^"]*"/g, ' ');
+  // Remove strings (quoted content) - but be careful with escaped quotes
+  let cleaned = definition.replace(/"(?:\\.|[^"\\])*"/g, ' ');
   // Remove case labels (-- labelName)
   cleaned = cleaned.replace(/--\s*\w+/g, ' ');
-  // Remove operators and special characters but keep rule names
-  cleaned = cleaned.replace(/[=|+*?()~&]/g, ' ');
+  // Remove curly braces (they're just syntax)
+  cleaned = cleaned.replace(/[{}]/g, ' ');
+  // Remove operators but keep angle brackets for now
+  cleaned = cleaned.replace(/[=|+*?()~&\[\]]/g, ' ');
   
   // Match word tokens that could be rule names (both uppercase and lowercase)
+  // This includes tokens inside angle brackets like listOf<Rule, ",">
   const tokens = cleaned.match(/[A-Za-z][a-zA-Z0-9_]*/g) || [];
   
   for (const token of tokens) {
@@ -88,19 +93,58 @@ function extractReferencesFromDefinition(definition: string, allRules: Set<strin
 
 /**
  * Calculate complexity score for a rule
+ * Score is based on actual complexity indicators, not simple repetition or basic Ohm constructs
  */
 function calculateComplexity(definition: string): number {
   let complexity = 0;
   
-  // Count operators
-  complexity += (definition.match(/\+/g) || []).length;
-  complexity += (definition.match(/\*/g) || []).length * 0.8;
-  complexity += (definition.match(/\?/g) || []).length * 0.5;
-  complexity += (definition.match(/\|/g) || []).length * 1.5;
+  // Remove common Ohm.js patterns that shouldn't count as complexity
+  let cleaned = definition;
   
-  // Count sequences (spaces between tokens)
-  const tokens = definition.trim().split(/\s+/).length;
-  complexity += tokens * 0.3;
+  // Remove listOf/nonemptyListOf constructs - these are simple
+  cleaned = cleaned.replace(/nonemptyListOf<[^>]+>/g, '');
+  cleaned = cleaned.replace(/listOf<[^>]+>/g, '');
+  
+  // Remove string literals - they're terminal and simple
+  cleaned = cleaned.replace(/"[^"]*"/g, '');
+  
+  // Remove case labels
+  cleaned = cleaned.replace(/--\s*\w+/g, '');
+  
+  // Count meaningful complexity indicators:
+  
+  // 1. Alternatives (|) - each choice adds complexity
+  const alternatives = (cleaned.match(/\|/g) || []).length;
+  complexity += alternatives * 2;
+  
+  // 2. Optional patterns (?) - but only moderate complexity
+  const optionals = (cleaned.match(/\?/g) || []).length;
+  complexity += optionals * 0.5;
+  
+  // 3. Lookahead/lookbehind (~) - these add complexity
+  const lookaheads = (cleaned.match(/~/g) || []).length;
+  complexity += lookaheads * 1.5;
+  
+  // 4. Nested parentheses - indicate grouping complexity
+  let parenDepth = 0;
+  let maxParenDepth = 0;
+  for (const char of cleaned) {
+    if (char === '(') parenDepth++;
+    if (char === ')') parenDepth--;
+    maxParenDepth = Math.max(maxParenDepth, parenDepth);
+  }
+  complexity += Math.max(0, maxParenDepth - 1) * 1.5;
+  
+  // 5. Number of distinct rule references (not total tokens)
+  const ruleRefs = cleaned.match(/[A-Z][a-zA-Z0-9_]*/g) || [];
+  const uniqueRefs = new Set(ruleRefs).size;
+  complexity += uniqueRefs * 0.8;
+  
+  // 6. Sequence length (but only significantly long sequences)
+  const tokens = cleaned.trim().split(/\s+/).filter(t => t.length > 0);
+  if (tokens.length > 5) {
+    complexity += (tokens.length - 5) * 0.3;
+  }
   
   return Math.round(complexity * 10) / 10;
 }
@@ -162,12 +206,21 @@ export function analyzeGrammar(grammarText: string): GrammarAnalysis {
     
     // Skip empty lines and comments
     if (!line || line.startsWith('//') || line.includes('{') || line === '}') {
-      continue;
+      // But only skip if we're not currently collecting a definition
+      if (!currentRule || line.startsWith('//')) {
+        continue;
+      }
     }
 
-    // Check if this is a rule name
+    // Check if this is a rule name (both uppercase and lowercase)
     const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
-    if (nextLine.startsWith('=') && /^[A-Z][a-zA-Z0-9_]*$/.test(line)) {
+    const nextNextLine = i < lines.length - 2 ? lines[i + 2].trim() : '';
+    
+    // Sometimes there's a comment between the rule name and its definition
+    // Check both the next line and the line after that
+    const hasDefinition = nextLine.startsWith('=') || (nextLine.startsWith('//') && nextNextLine.startsWith('='));
+    
+    if (hasDefinition && /^[A-Za-z][a-zA-Z0-9_]*$/.test(line)) {
       // Save previous rule
       if (currentRule && currentDefinition.length > 0) {
         ruleDefinitions.set(currentRule, currentDefinition.join(' '));
@@ -178,7 +231,7 @@ export function analyzeGrammar(grammarText: string): GrammarAnalysis {
     }
 
     // Collect definition lines
-    if (currentRule && (line.startsWith('=') || line.startsWith('|') || line)) {
+    if (currentRule && (line.startsWith('=') || line.startsWith('|') || line.startsWith('+='))) {
       currentDefinition.push(line);
     }
   }
@@ -307,9 +360,9 @@ export function getGrammarSuggestions(analysis: GrammarAnalysis): GrammarSuggest
     });
   }
 
-  // Complex rules
+  // Complex rules (adjusted threshold for new scoring system)
   analysis.metadata.forEach((meta, rule) => {
-    if (meta.complexity > 10) {
+    if (meta.complexity > 15) {
       suggestions.push({
         type: 'info',
         rule,

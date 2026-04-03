@@ -5,14 +5,25 @@ import type { ASTNode, TreeNode } from '@/types/ast';
  * 
  * PURPOSE:
  * - Remove Ohm.js internal nodes (_iter, _terminal) that clutter the tree
+ * - Remove lexical nodes (lowercase rules) that are parsing artifacts
  * - Collapse linear chains of single-child nodes for readability
- * - Hide lowercase lexical rules (tokens) that don't add structural value
  * 
  * STRATEGY:
  * 1. Clean: Remove Ohm.js framework nodes (_iter, _terminal)
- * 2. Collapse: Merge single-child chains (A → B → C becomes "A → B → C")
- * 3. Filter: Hide lowercase leaf nodes (lexical tokens like 'space', 'digit')
+ * 2. Filter Lexical: Remove all lowercase lexical nodes (tokens) from structure
+ * 3. Collapse: Merge single-child chains (A → B → C becomes "A → B → C")
  */
+
+/**
+ * Check if a node is a lowercase (lexical) rule
+ * 
+ * Ohm.js convention:
+ * - Uppercase rules (e.g., Expression, Statement) = structural nodes, shown in AST
+ * - Lowercase rules (e.g., identifier, number, listOf) = lexical tokens, hidden from AST
+ */
+function isLexicalNode(node: ASTNode): boolean {
+  return /^[a-z]/.test(node.name);
+}
 
 /**
  * Clean AST by removing Ohm.js framework nodes
@@ -57,31 +68,42 @@ function cleanAST(node: ASTNode): ASTNode | null {
 }
 
 /**
- * Check if a node is a lowercase (lexical) rule
+ * Remove all lexical (lowercase) nodes from the AST
  * 
- * Ohm.js convention:
- * - Uppercase rules (e.g., Expression, Statement) = structural nodes, shown in AST
- * - Lowercase rules (e.g., identifier, number) = lexical tokens, hidden from AST
- */
-function isLexicalNode(node: ASTNode): boolean {
-  return /^[a-z]/.test(node.name);
-}
-
-/**
- * Skip through lexical nodes to find the next structural node
+ * This is a pre-processing step that simplifies the tree structure by:
+ * - Removing intermediate lexical nodes (e.g., listOf, nonemptyListOf)
+ * - Promoting their structural children up to the parent
  * 
- * Used when traversing single-child chains to find meaningful nodes.
- * Lexical nodes are intermediate parsing artifacts we want to hide.
+ * Example transformation:
+ * Before: File → Row → listOf → nonemptyListOf → [Field, Field, Field]
+ * After:  File → Row → [Field, Field, Field]
+ * 
+ * Strategy:
+ * - If node is lexical: flatten it by returning its children
+ * - If node is structural: keep it and recursively filter its children
+ * - Lexical leaf nodes are removed entirely (they have no structural value)
  */
-function skipLexicalNodes(node: ASTNode): ASTNode {
-  let current = node;
-  
-  // Follow single-child lexical nodes until we find a structural node or end
-  while (current.children.length === 1 && isLexicalNode(current)) {
-    current = current.children[0];
+function removeLexicalNodes(node: ASTNode): ASTNode[] {
+  // If this is a lexical node, we want to skip it and return its processed children
+  if (isLexicalNode(node)) {
+    // Recursively process all children and flatten them
+    const result: ASTNode[] = [];
+    for (const child of node.children) {
+      result.push(...removeLexicalNodes(child));
+    }
+    return result;
   }
   
-  return current;
+  // This is a structural node - keep it but filter its children
+  const filteredChildren: ASTNode[] = [];
+  for (const child of node.children) {
+    filteredChildren.push(...removeLexicalNodes(child));
+  }
+  
+  return [{
+    ...node,
+    children: filteredChildren,
+  }];
 }
 
 /**
@@ -90,46 +112,20 @@ function skipLexicalNodes(node: ASTNode): ASTNode {
  * A linear path is a chain of single-child structural nodes like:
  * - Short: Program → Statement (2 nodes)
  * - Long: Program → Statement → Expression → Term (4 nodes)
+ * - With branching end: Domain → Domain_withSubdomain (where second node has multiple children)
  * 
- * We collapse these to: "Program → Statement" or "Program → ... → Term"
+ * We collapse these to: "Program → Statement" or "Program → ... → Term" or "Domain → Domain_withSubdomain"
  * This reduces visual clutter and makes the tree more readable.
  * 
- * We STOP collapsing when we hit:
- * - A branching node (multiple children)
- * 
  * We ALLOW collapsing for:
- * - Chains ending at leaf nodes (includes 2-node chains)
- * - Chains of any length ≥ 2
+ * - Any node with exactly one child (even if that child branches)
+ * - This enables clean 2-node chains like "Domain → Domain_withSubdomain"
+ * - The collapseLinearPath function handles stopping at branching nodes
  */
 function shouldCollapse(node: ASTNode): boolean {
-  // Stop if leaf (nothing to collapse) or branching node
-  if (node.children.length !== 1) {
-    return false;
-  }
-  
-  // Look ahead: skip lexical nodes to find the next structural node
-  const nextStructural = skipLexicalNodes(node.children[0]);
-  
-  // If next node is lexical, don't collapse
-  if (isLexicalNode(nextStructural)) {
-    return false;
-  }
-  
-  // Stop if next node branches (has multiple children)
-  // But ALLOW if next node is a leaf (0 children) - this enables 2-node chains
-  if (nextStructural.children.length > 1) {
-    return false;
-  }
-  
-  // Debug logging for 2-node chains
-  if (nextStructural.children.length === 0) {
-    console.log(`🔍 2-node chain detected: "${node.name}" → "${nextStructural.name}" (leaf)`);
-  }
-  
-  // Collapse if:
-  // - Next node is a leaf (0 children) → 2-node chain like A → B
-  // - Next node has 1 child → longer chain like A → B → C
-  return true;
+  // Collapse if we have exactly one child (creates a 2+ node chain)
+  // The child can have any number of children - collapseLinearPath will handle it
+  return node.children.length === 1;
 }
 
 /**
@@ -148,33 +144,11 @@ function collapseLinearPath(node: ASTNode): { name: string; finalNode: ASTNode }
   // Traverse down the single-child chain
   while (current.children.length === 1) {
     const child = current.children[0];
-    
-    // Skip lexical nodes (we don't include them in the path name)
-    const nextStructural = skipLexicalNodes(child);
-    
-    // Stop at leaf or branching node
-    if (nextStructural.children.length === 0 || nextStructural.children.length > 1) {
-      current = nextStructural;
-      // Add final structural node to path if it's not lexical
-      if (!isLexicalNode(nextStructural)) {
-        path.push(nextStructural.name);
-      }
-      break;
-    }
-    
-    // Add structural node to path and continue
-    if (!isLexicalNode(nextStructural)) {
-      path.push(nextStructural.name);
-      current = nextStructural;
-    } else {
-      // Reached a lexical leaf, stop
-      current = nextStructural;
-      break;
-    }
+    path.push(child.name);
+    current = child;
   }
   
   const collapsedName = path.join(' → ');
-  console.log(`✅ Collapsed: ${collapsedName} (${path.length} nodes, final has ${current.children.length} children)`);
   
   return {
     name: collapsedName,
@@ -184,29 +158,9 @@ function collapseLinearPath(node: ASTNode): { name: string; finalNode: ASTNode }
 
 /**
  * Recursively optimize children nodes
- * 
- * Filters out lowercase lexical leaf nodes (e.g., 'space', 'digit')
- * These are parsing artifacts that don't add value to the visualization.
- * 
- * Strategy:
- * - Skip lexical leaf nodes (lowercase with no children)
- * - Recursively optimize all other children
  */
 function optimizeChildren(children: ASTNode[]): TreeNode[] {
-  const optimized: TreeNode[] = [];
-  
-  for (const child of children) {
-    // Filter: Skip lowercase lexical leaf nodes
-    // These are tokens like 'space', 'digit', 'comma' that clutter the tree
-    if (isLexicalNode(child) && child.children.length === 0) {
-      continue;
-    }
-    
-    // Recursively optimize this child
-    optimized.push(optimizeTree(child));
-  }
-  
-  return optimized;
+  return children.map(child => optimizeTree(child));
 }
 
 /**
@@ -214,14 +168,14 @@ function optimizeChildren(children: ASTNode[]): TreeNode[] {
  * 
  * OPTIMIZATION STEPS:
  * 1. Clean: Remove Ohm.js internal nodes (_iter, _terminal)
- * 2. Collapse: Merge single-child chains for readability
- * 3. Filter: Hide lowercase lexical leaf nodes
+ * 2. Filter Lexical: Remove all lowercase lexical nodes (pre-processing)
+ * 3. Collapse: Merge single-child chains for readability
  * 
  * RESULT: A simplified tree that's easier to visualize and understand
  * 
  * Example:
- * Before: Program → [Statement → [Expression → [Term → [Factor → [digit]]]]]
- * After:  Program → Statement → Expression → Term → Factor
+ * Before: File → Row → listOf → nonemptyListOf → [Field, Field, Field]
+ * After:  File → Row → [Field, Field, Field]
  */
 export function optimizeTree(ast: ASTNode): TreeNode {
   // Step 1: Clean Ohm.js framework nodes
@@ -233,60 +187,72 @@ export function optimizeTree(ast: ASTNode): TreeNode {
     };
   }
   
-  // Leaf node: return as terminal
-  if (cleaned.children.length === 0) {
+  // Step 2: Remove all lexical nodes (pre-processing)
+  // This elegantly handles chains like: File → Row → listOf → nonemptyListOf → [Fields]
+  // By removing listOf and nonemptyListOf, we get: File → Row → [Fields]
+  const lexicalFiltered = removeLexicalNodes(cleaned);
+  
+  // Handle edge case: if root was lexical or everything was filtered
+  if (lexicalFiltered.length === 0) {
     return {
-      name: cleaned.name,
-      attributes: {
-        value: cleaned.value,
-        type: 'terminal',
-      },
-      interval: cleaned.interval,
+      name: 'empty',
+      attributes: { type: 'terminal' },
     };
   }
   
-  // Step 2: Check if this starts a collapsible linear path
-  if (shouldCollapse(cleaned)) {
-    const { name, finalNode } = collapseLinearPath(cleaned);
+  // Work with the first filtered node (should be the structural root)
+  const node = lexicalFiltered[0];
+  
+  // Leaf node: return as terminal
+  if (node.children.length === 0) {
+    return {
+      name: node.name,
+      attributes: {
+        value: node.value,
+        type: 'terminal',
+      },
+      interval: node.interval,
+    };
+  }
+  
+  // Step 3: Check if this starts a collapsible linear path
+  if (shouldCollapse(node)) {
+    const { name, finalNode } = collapseLinearPath(node);
     
     // Collapsed path ends at leaf (terminal node)
-    // Example: "Program → Statement → Expression → Term" with no children
-    // This will be rendered as a purple (collapsed) terminal node
     if (finalNode.children.length === 0) {
       return {
         name,
         attributes: {
           value: finalNode.value,
-          type: 'collapsed-terminal', // Special type for collapsed leaf nodes
+          type: 'collapsed-terminal',
         },
         interval: finalNode.interval,
       };
     }
     
     // Collapsed path has children: recursively optimize them
-    // Example: "Program → Statement → Expression" with children
-    // This will be rendered as a purple (collapsed) branch node
     return {
       name,
       attributes: {
         value: finalNode.value,
-        type: 'collapsed', // Type for collapsed branch nodes
+        type: 'collapsed',
       },
       interval: finalNode.interval,
       children: optimizeChildren(finalNode.children),
     };
   }
   
-  // Step 3: Branching node - optimize children and filter lexical leaves
+  // Branching node - optimize children
   return {
-    name: cleaned.name,
+    name: node.name,
     attributes: {
       // Truncate long values for readability
-      value: cleaned.value && cleaned.value.length < 50 ? cleaned.value : undefined,
+      value: node.value && node.value.length < 50 ? node.value : undefined,
       type: 'branch',
     },
-    interval: cleaned.interval,
-    children: optimizeChildren(cleaned.children),
+    interval: node.interval,
+    children: optimizeChildren(node.children),
   };
 }
 
@@ -295,7 +261,7 @@ export function optimizeTree(ast: ASTNode): TreeNode {
  * 
  * Provides a "raw" view of the AST with minimal processing:
  * - Removes Ohm.js internal nodes (_iter, _terminal)
- * - Filters lowercase lexical leaf nodes
+ * - Removes lexical nodes (for consistency with optimized view)
  * - NO collapsing of single-child chains
  * 
  * Use this when you want to see the full structure without optimization.
@@ -310,19 +276,29 @@ export function astToTree(ast: ASTNode): TreeNode {
     };
   }
   
-  // Recursively convert children, filtering out lexical leaf nodes
-  const filteredChildren = cleaned.children
-    .filter(child => !(isLexicalNode(child) && child.children.length === 0))
-    .map(child => astToTree(child));
+  // Remove lexical nodes (same as optimized tree for consistency)
+  const lexicalFiltered = removeLexicalNodes(cleaned);
+  
+  if (lexicalFiltered.length === 0) {
+    return {
+      name: 'empty',
+      attributes: { type: 'terminal' },
+    };
+  }
+  
+  const node = lexicalFiltered[0];
+  
+  // Recursively convert children (no collapsing, just structure)
+  const convertedChildren = node.children.map(child => astToTree(child));
   
   return {
-    name: cleaned.name,
+    name: node.name,
     attributes: {
-      value: cleaned.value,
-      type: cleaned.children.length === 0 ? 'terminal' : 'non-terminal',
+      value: node.value,
+      type: node.children.length === 0 ? 'terminal' : 'non-terminal',
     },
-    interval: cleaned.interval,
-    children: filteredChildren,
+    interval: node.interval,
+    children: convertedChildren,
   };
 }
 

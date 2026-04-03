@@ -1,43 +1,40 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/useTheme';
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
   
   const isVisualizePage = location.pathname === '/visualize';
   const isGrammarPage = location.pathname.startsWith('/grammar');
   
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950">
-      {/* Modern Unified Header */}
-      <header className="border-b bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-950/60 shadow-sm">
-        <div className="container mx-auto px-6 py-3">
+    <div className="h-screen flex flex-col bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-background focus:border focus:rounded-md focus:m-2 focus:text-sm focus:font-medium"
+      >
+        Skip to content
+      </a>
+      <header className="border-b bg-background">
+        <div className="container mx-auto px-6 py-2">
           <div className="flex items-center justify-between">
-            {/* Left: Logo & Navigation */}
             <div className="flex items-center gap-4">
-              {/* Logo */}
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                  <Eye className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    AST Visualizer
-                  </h1>
-                </div>
-              </div>
+              <h1 className="text-lg font-semibold text-foreground">
+                AST Visualizer
+              </h1>
               
-              {/* Page Context */}
               {isVisualizePage && (
                 <>
-                  <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                  <div className="h-5 w-px bg-border" />
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate('/grammar/builder')}
+                    onClick={() => navigate('/grammar/code')}
                     className="gap-2 text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -48,26 +45,39 @@ const AppLayout: React.FC = () => {
               
               {isGrammarPage && (
                 <>
-                  <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Sparkles className="h-4 w-4" />
-                    <span>Grammar Editor</span>
-                  </div>
+                  <div className="h-5 w-px bg-border" />
+                  <span className="text-sm text-muted-foreground">
+                    Grammar Editor
+                  </span>
                 </>
               )}
             </div>
             
-            {/* Right: Context Actions - Rendered by child routes */}
-            <div id="header-actions" className="flex items-center gap-2" />
+            <div className="flex items-center gap-2">
+              <div id="header-actions" className="flex items-center gap-2" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggle}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="h-8 w-8"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Content - rendered by child routes */}
-      <Outlet />
+      <div id="main-content" className="flex-1 flex flex-col overflow-hidden">
+        <Outlet />
+      </div>
     </div>
   );
 };
 
 export default AppLayout;
-

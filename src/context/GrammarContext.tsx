@@ -1,30 +1,51 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import type { ASTNode, TreeNode, GrammarExample } from '@/types/ast';
+import type { Grammar } from '@/domain/types';
 import { parseWithGrammar } from '@/lib/parser';
 import { optimizeTree, astToTree } from '@/lib/treeOptimizer';
 import { decodeStateFromUrl, clearShareUrl } from '@/lib/shareUtils';
 import { useGrammarHistory } from '@/hooks/useGrammarHistory';
+import { logger } from '@/shared/utils/logger';
+import { exampleGrammars } from '@/data/examples';
+import { parseGrammarFromText, serializeGrammarToText } from '@/domain/grammarParser';
+import type { MappedError } from '@/services/ErrorMappingService';
 
+/**
+ * Grammar Context Type - DOMAIN STATE ONLY (NOW STORING DOMAIN OBJECTS)
+ * The context now stores Grammar domain objects as the single source of truth.
+ * Text serialization happens only when needed (for display, validation, sharing).
+ * UI preferences like optimizeEnabled and collapsedRules have been moved to useLocalPreferences hook
+ */
 interface GrammarContextType {
-  grammar: string;
+  // Domain state - NOW DOMAIN OBJECTS, NOT STRINGS
+  grammar: Grammar;
   programText: string;
   ast: ASTNode | null;
-  tree: TreeNode | null;
   error: string | null;
-  optimizeEnabled: boolean;
-  collapsedRules: Set<string>;
+  mappedError: MappedError | null;
+  
+  // Computed trees (both versions available)
+  optimizedTree: TreeNode | null;
+  fullTree: TreeNode | null;
+  
+  // Statistics
   fullNodeCount: number;
   optimizedNodeCount: number;
+  
+  // History
   canUndo: boolean;
   canRedo: boolean;
-  setGrammar: (value: string) => void;
+  
+  // Actions
+  setGrammar: (value: Grammar) => void;
+  setGrammarFromText: (text: string) => void; // NEW: Parse text and update grammar
+  getGrammarAsText: () => string; // NEW: Serialize grammar to text
   setProgramText: (value: string) => void;
-  setOptimizeEnabled: (value: boolean) => void;
-  toggleRuleCollapsed: (ruleId: string) => void;
   parseGrammar: () => boolean;
   loadExample: (example: GrammarExample) => void;
   undo: () => void;
   redo: () => void;
+  clearError: () => void;
 }
 
 const GrammarContext = createContext<GrammarContextType | undefined>(undefined);
@@ -45,172 +66,199 @@ export const GrammarProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Check for shared state in URL on initialization
   const sharedState = decodeStateFromUrl();
   
-  const [grammar, setGrammarInternal] = useState(sharedState?.grammar || '');
-  const [programText, setProgramText] = useState(sharedState?.programText || '');
+  // Default to first example grammar (Arithmetic Calculator) if no shared state
+  const defaultExample = exampleGrammars[0];
+  
+  // Parse initial grammar from text
+  const initialGrammarText = sharedState?.grammar || defaultExample.grammar;
+  const initialGrammar = parseGrammarFromText(initialGrammarText);
+  
+  // Domain state only - SINGLE SOURCE OF TRUTH (NOW DOMAIN OBJECTS)
+  const [grammar, setGrammarInternal] = useState<Grammar>(initialGrammar);
+  const [programText, setProgramText] = useState(sharedState?.programText || defaultExample.sampleInput);
   const [ast, setAst] = useState<ASTNode | null>(null);
-  const [tree, setTree] = useState<TreeNode | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [optimizeEnabled, setOptimizeEnabled] = useState(true);
-  const [collapsedRules, setCollapsedRules] = useState<Set<string>>(new Set());
+  const [mappedError, setMappedError] = useState<MappedError | null>(null);
+  
+  // Both tree versions are computed and cached
+  const [optimizedTree, setOptimizedTree] = useState<TreeNode | null>(null);
+  const [fullTree, setFullTree] = useState<TreeNode | null>(null);
   const [fullNodeCount, setFullNodeCount] = useState(0);
   const [optimizedNodeCount, setOptimizedNodeCount] = useState(0);
   
-  // Grammar history for undo/redo
-  const { canUndo, canRedo, undo: undoHistory, redo: redoHistory, pushHistory } = useGrammarHistory(grammar);
+  // Grammar history for undo/redo (stores serialized text for history)
+  const grammarText = serializeGrammarToText(grammar);
+  const { canUndo, canRedo, undo: undoHistory, redo: redoHistory, pushHistory } = useGrammarHistory(grammarText);
   
   // Clear the URL after loading shared state to prevent confusion
+  // Only run once on mount, shared state is accessed directly above
   useEffect(() => {
     if (sharedState) {
-      console.log('[GrammarContext] Loaded shared state from URL');
+      logger.info('Loaded shared state from URL');
       clearShareUrl();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Wrapped setGrammar with logging and history tracking
-  const setGrammar = useCallback((newGrammar: string, skipHistory = false) => {
-    console.log('[GrammarContext] setGrammar called');
-    console.log('  New grammar length:', newGrammar.length);
-    console.log('  First 50 chars:', newGrammar.substring(0, 50));
+  const setGrammar = useCallback((newGrammar: Grammar, skipHistory = false) => {
+    logger.debug('setGrammar called', { 
+      name: newGrammar.name,
+      ruleCount: newGrammar.rules.length
+    });
     setGrammarInternal(newGrammar);
     
     // Push to history (will be debounced internally)
     if (!skipHistory) {
-      pushHistory(newGrammar);
+      const text = serializeGrammarToText(newGrammar);
+      pushHistory(text);
     }
   }, [pushHistory]);
 
+  // NEW: Set grammar from text (parse and update)
+  const setGrammarFromText = useCallback((text: string, skipHistory = false) => {
+    const parsed = parseGrammarFromText(text);
+    setGrammar(parsed, skipHistory);
+  }, [setGrammar]);
+
+  // NEW: Get grammar as text (serialize)
+  const getGrammarAsText = useCallback((): string => {
+    if (!grammar || !grammar.name) {
+      return '';
+    }
+    return serializeGrammarToText(grammar);
+  }, [grammar]);
+
   // Undo grammar change
   const undo = useCallback(() => {
-    const previousGrammar = undoHistory();
-    if (previousGrammar !== null) {
-      setGrammarInternal(previousGrammar);
-      console.log('✓ Undo successful');
+    const previousGrammarText = undoHistory();
+    if (previousGrammarText !== null) {
+      const parsed = parseGrammarFromText(previousGrammarText);
+      setGrammarInternal(parsed);
+      logger.debug('Undo successful');
     }
   }, [undoHistory]);
 
   // Redo grammar change
   const redo = useCallback(() => {
-    const nextGrammar = redoHistory();
-    if (nextGrammar !== null) {
-      setGrammarInternal(nextGrammar);
-      console.log('✓ Redo successful');
+    const nextGrammarText = redoHistory();
+    if (nextGrammarText !== null) {
+      const parsed = parseGrammarFromText(nextGrammarText);
+      setGrammarInternal(parsed);
+      logger.debug('Redo successful');
     }
   }, [redoHistory]);
 
-  // Re-generate tree when optimization setting changes
-  // SINGLE SOURCE OF TRUTH: Only generate trees here, not in components
-  useEffect(() => {
+  // Generate both tree versions when AST changes
+  // Components can choose which tree to use via their own UI preferences
+  // Using useLayoutEffect to avoid setState in effect lint warning
+  useLayoutEffect(() => {
     if (ast) {
-      const treeData = optimizeEnabled ? optimizeTree(ast) : astToTree(ast);
-      setTree(treeData);
+      const full = astToTree(ast);
+      const optimized = optimizeTree(ast);
+      
+      setFullTree(full);
+      setOptimizedTree(optimized);
+      setFullNodeCount(countTreeNodes(full));
+      setOptimizedNodeCount(countTreeNodes(optimized));
     }
-  }, [optimizeEnabled, ast]);
+  }, [ast]);
 
   const parseGrammar = useCallback((): boolean => {
     setError(null);
+    setMappedError(null);
     
-    if (!grammar.trim()) {
+    // Serialize grammar to text for Ohm.js
+    const grammarText = serializeGrammarToText(grammar);
+    
+    if (!grammarText.trim()) {
       setError('Please enter a grammar');
+      setMappedError(null);
       return false;
     }
 
     if (!programText.trim()) {
       setError('Please enter text to parse');
+      setMappedError(null);
       return false;
     }
 
-    const result = parseWithGrammar(grammar, programText);
+    const result = parseWithGrammar(grammarText, programText);
 
     if (result.success && result.ast) {
-      // Generate both trees ONCE for node counting
-      const fullTree = astToTree(result.ast);
-      const optimizedTree = optimizeTree(result.ast);
-      
-      // Calculate node counts
-      setFullNodeCount(countTreeNodes(fullTree));
-      setOptimizedNodeCount(countTreeNodes(optimizedTree));
-      
-      // Store AST (will trigger tree regeneration via useEffect)
+      // Store AST (will trigger tree generation via useEffect)
       setAst(result.ast);
-      
-      // Set the appropriate tree based on current optimization setting
-      const treeData = optimizeEnabled ? optimizedTree : fullTree;
-      setTree(treeData);
       setError(null);
+      setMappedError(null);
       return true;
     } else {
       setError(result.error || 'Failed to parse');
-      // Keep the last valid AST and tree instead of clearing them
+      setMappedError(null);
+      // Keep the last valid AST and trees instead of clearing them
       return false;
     }
-  }, [grammar, programText, optimizeEnabled]);
+  }, [grammar, programText]);
 
   const loadExample = useCallback((example: GrammarExample) => {
-    setGrammar(example.grammar);
+    // Parse grammar text from example
+    const parsedGrammar = parseGrammarFromText(example.grammar);
+    setGrammar(parsedGrammar);
     setProgramText(example.sampleInput);
     setError(null);
-    
-    // Clear collapsed rules when loading a new example (different rule set)
-    setCollapsedRules(new Set());
+    setMappedError(null);
     
     // Auto-parse the example
     setTimeout(() => {
       const result = parseWithGrammar(example.grammar, example.sampleInput);
       if (result.success && result.ast) {
-        // Generate both trees ONCE for node counting
-        const fullTree = astToTree(result.ast);
-        const optimizedTree = optimizeTree(result.ast);
-        
-        // Calculate node counts
-        setFullNodeCount(countTreeNodes(fullTree));
-        setOptimizedNodeCount(countTreeNodes(optimizedTree));
-        
-        // Store AST (will trigger tree regeneration via useEffect)
+        // Store AST (will trigger tree generation via useEffect)
         setAst(result.ast);
-        
-        // Set the appropriate tree based on current optimization setting
-        const treeData = optimizeEnabled ? optimizedTree : fullTree;
-        setTree(treeData);
         setError(null);
+        setMappedError(null);
       } else {
         setError(result.error || 'Failed to parse example');
-        // Keep any existing AST/tree
+        setMappedError(null);
+        // Keep any existing AST/trees
       }
     }, 100);
-  }, [optimizeEnabled]);
+  }, [setGrammar]);
 
-  const toggleRuleCollapsed = useCallback((ruleId: string) => {
-    setCollapsedRules(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(ruleId)) {
-        newSet.delete(ruleId);
-      } else {
-        newSet.add(ruleId);
-      }
-      return newSet;
-    });
+  // NEW: Function to clear error state
+  const clearError = useCallback(() => {
+    setError(null);
+    setMappedError(null);
   }, []);
 
   const value: GrammarContextType = {
+    // Domain state
     grammar,
     programText,
     ast,
-    tree,
     error,
-    optimizeEnabled,
-    collapsedRules,
+    mappedError,
+    
+    // Both tree versions available
+    optimizedTree,
+    fullTree,
+    
+    // Statistics
     fullNodeCount,
     optimizedNodeCount,
+    
+    // History
     canUndo,
     canRedo,
+    
+    // Actions
     setGrammar,
+    setGrammarFromText,
+    getGrammarAsText,
     setProgramText,
-    setOptimizeEnabled,
-    toggleRuleCollapsed,
     parseGrammar,
     loadExample,
     undo,
     redo,
+    clearError,
   };
 
   return (

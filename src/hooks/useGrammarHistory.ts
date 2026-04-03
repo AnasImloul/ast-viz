@@ -21,8 +21,10 @@ const MAX_HISTORY_SIZE = 50;
  * Hook for managing grammar history with undo/redo functionality
  */
 export function useGrammarHistory(initialGrammar: string = ''): GrammarHistoryHook {
-  const [history, setHistory] = useState<HistoryEntry[]>([
-    { grammar: initialGrammar, timestamp: Date.now() }
+  // Capture timestamp once on mount (not during render)
+  const [initialTimestamp] = useState(() => Date.now());
+  const [history, setHistory] = useState<HistoryEntry[]>(() => [
+    { grammar: initialGrammar, timestamp: initialTimestamp }
   ]);
   const [currentIndex, setCurrentIndex] = useState(0);
   
