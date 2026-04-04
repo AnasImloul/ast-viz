@@ -1,6 +1,0 @@
-{
-  "routeKey": "ast_viz",
-  "prefix": "/tools/ast-viz",
-  "rewritePrefixTo": "/",
-  "projectName": "ast-viz"
-}
