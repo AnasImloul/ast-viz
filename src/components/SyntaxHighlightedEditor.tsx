@@ -30,11 +30,11 @@ interface ColorScheme {
 
 // Default color scheme - grammar-agnostic
 const DEFAULT_COLOR_SCHEME: ColorScheme = {
-  lexicalRule: '#10b981',    // Green for lexical tokens
-  syntacticRule: '#3b82f6',  // Blue for syntactic rules
-  literal: '#f97316',        // Orange for literals
-  punctuation: '#94a3b8',    // Slate for punctuation
-  default: '#9ca3af',        // Gray for everything else
+  lexicalRule: '#4caf82',
+  syntacticRule: '#e8613a',
+  literal: '#7a9ab5',
+  punctuation: '#8a8880',
+  default: '#b5b2aa',
 };
 
 /**
@@ -373,8 +373,8 @@ export const SyntaxHighlightedEditor: React.FC<SyntaxHighlightedEditorProps> = (
             <mark
               className="text-transparent"
               style={{
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.6)',
+                backgroundColor: 'rgba(232, 97, 58, 0.2)',
+                boxShadow: '0 0 0 2px rgba(232, 97, 58, 0.6)',
                 borderRadius: '2px',
                 padding: 0,
                 boxDecorationBreak: 'clone',
@@ -398,7 +398,7 @@ export const SyntaxHighlightedEditor: React.FC<SyntaxHighlightedEditorProps> = (
         className={`
           w-full h-full font-mono text-sm resize-none bg-transparent px-3 py-2
           border-0 outline-none focus:outline-none focus:ring-0
-          ${highlightedContent ? 'text-transparent caret-blue-500' : 'text-foreground'}
+          ${highlightedContent ? 'text-transparent caret-primary' : 'text-foreground'}
         `}
         style={{
           lineHeight: '1.5',

@@ -26,19 +26,19 @@ const CollapsibleJson: React.FC<CollapsibleJsonProps> = ({ data, name, depth = 0
 
   const renderPrimitive = (value: any) => {
     if (typeof value === 'string') {
-      return <span className="text-green-600 dark:text-green-400">"{value}"</span>;
+      return <span className="text-good">"{value}"</span>;
     }
     if (typeof value === 'number') {
-      return <span className="text-orange-600 dark:text-orange-400">{value}</span>;
+      return <span className="text-primary">{value}</span>;
     }
     if (typeof value === 'boolean' || value === null) {
-      return <span className="text-purple-600 dark:text-purple-400">{String(value)}</span>;
+      return <span className="text-accent2">{String(value)}</span>;
     }
     return String(value);
   };
 
   const renderKey = (key: string) => (
-    <span className="text-blue-600 dark:text-blue-400">"{key}"</span>
+    <span className="text-accent2">"{key}"</span>
   );
 
   if (isPrimitive) {
@@ -196,7 +196,7 @@ const JsonView: React.FC<JsonViewProps> = ({ data }) => {
       </CardHeader>
       <CardContent className="flex-1 p-0">
         <ScrollArea className="h-full">
-          <div className="p-4 bg-slate-50 dark:bg-slate-900">
+          <div className="p-4 bg-muted">
             <CollapsibleJson data={data} />
           </div>
         </ScrollArea>

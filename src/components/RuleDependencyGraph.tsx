@@ -30,9 +30,9 @@ const RuleNode: React.FC<{
   const { label, metadata, onClick } = data;
 
   const getBgColor = () => {
-    if (metadata.isEntry) return 'bg-green-600';
-    if (metadata.isTerminal) return 'bg-blue-600';
-    return 'bg-purple-600';
+    if (metadata.isEntry) return 'bg-good';
+    if (metadata.isTerminal) return 'bg-accent2';
+    return 'bg-primary';
   };
 
   return (
@@ -54,7 +54,7 @@ const RuleNode: React.FC<{
           background: '#fff',
           width: 8,
           height: 8,
-          border: '2px solid #6b7280',
+          border: '2px solid #8a8880',
         }}
       />
       
@@ -75,7 +75,7 @@ const RuleNode: React.FC<{
           background: '#fff',
           width: 8,
           height: 8,
-          border: '2px solid #6b7280',
+          border: '2px solid #8a8880',
         }}
       />
     </div>
@@ -162,14 +162,14 @@ const RuleDependencyGraphInner: React.FC<RuleDependencyGraphProps> = ({
           type: 'smoothstep',
           animated: false,
           style: {
-            stroke: '#6b7280',
+            stroke: '#8a8880',
             strokeWidth: 2,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 16,
             height: 16,
-            color: '#6b7280',
+            color: '#8a8880',
           },
         };
         edges.push(edge);
@@ -243,15 +243,15 @@ const RuleDependencyGraphInner: React.FC<RuleDependencyGraphProps> = ({
       <div className="absolute bottom-4 left-4 bg-background/95 border rounded-lg p-3 text-xs space-y-1.5 z-10">
         <div className="font-medium mb-1.5">Legend</div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-green-600" />
+          <div className="w-3 h-3 rounded bg-good" />
           <span>Entry Rule</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-purple-600" />
+          <div className="w-3 h-3 rounded bg-primary" />
           <span>Intermediate</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-blue-600" />
+          <div className="w-3 h-3 rounded bg-accent2" />
           <span>Terminal</span>
         </div>
       </div>
@@ -262,12 +262,12 @@ const RuleDependencyGraphInner: React.FC<RuleDependencyGraphProps> = ({
         <div>Rules: {analysis.rules.length}</div>
         <div>Dependencies: {analysis.dependencies.length}</div>
         {analysis.unusedRules.length > 0 && (
-          <div className="text-orange-600 dark:text-orange-400">
+          <div className="text-primary">
             Unused: {analysis.unusedRules.length}
           </div>
         )}
         {analysis.hasLeftRecursion && (
-          <div className="text-blue-600 dark:text-blue-400">
+          <div className="text-accent2">
             Left Recursion: Yes
           </div>
         )}

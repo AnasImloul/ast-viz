@@ -11,6 +11,7 @@ import JsonView from '@/components/JsonView';
 import { SyntaxHighlightedEditor } from '@/components/SyntaxHighlightedEditor';
 import { useGrammar } from '@/context/GrammarContext';
 import { Braces, Network, Play, AlertCircle, PanelLeftClose, PanelLeftOpen, GripVertical, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 const VisualizationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,10 +54,10 @@ const VisualizationPage: React.FC = () => {
 
   const leftPanelMinSize = Math.min(50, (600 / panelGroupWidth) * 100);
 
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1400);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1400);
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -123,16 +124,15 @@ const VisualizationPage: React.FC = () => {
               <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={autoParseEnabled ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAutoParseEnabled(!autoParseEnabled)}
-              className="h-7 text-xs"
-              title={autoParseEnabled ? "Auto-parse enabled" : "Auto-parse disabled"}
-            >
-              {autoParseEnabled ? 'Auto' : 'Manual'}
-            </Button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <Switch
+                checked={autoParseEnabled}
+                onCheckedChange={setAutoParseEnabled}
+                aria-label="Toggle auto-parse"
+              />
+              <span className="text-xs text-muted-foreground">Auto-parse</span>
+            </label>
             <span className="text-xs text-muted-foreground">
               {programLineCount} lines
             </span>
@@ -334,40 +334,45 @@ const VisualizationPage: React.FC = () => {
           </PanelResizeHandle>
 
           <Panel defaultSize={70} minSize={30}>
-            <div className="h-full overflow-hidden p-4 relative">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToggleInputPanel}
-                className="absolute top-4 left-4 z-10 gap-1.5"
-                title={isInputPanelCollapsed ? "Show Input Panel" : "Hide Input Panel"}
-              >
-                {isInputPanelCollapsed ? (
-                  <>
-                    <PanelLeftOpen className="h-4 w-4" />
-                    Show Input
-                  </>
-                ) : (
-                  <>
-                    <PanelLeftClose className="h-4 w-4" />
-                    Hide Input
-                  </>
-                )}
-              </Button>
+            <div className="h-full overflow-hidden p-4 flex flex-col gap-3">
+              <Tabs defaultValue="tree" className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between flex-none">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleInputPanel}
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    title={isInputPanelCollapsed ? "Show Input Panel" : "Hide Input Panel"}
+                  >
+                    {isInputPanelCollapsed ? (
+                      <>
+                        <PanelLeftOpen className="h-4 w-4" />
+                        <span className="text-xs">Show Input</span>
+                      </>
+                    ) : (
+                      <>
+                        <PanelLeftClose className="h-4 w-4" />
+                        <span className="text-xs">Hide Input</span>
+                      </>
+                    )}
+                  </Button>
 
-              <Tabs defaultValue="tree" className="h-full flex flex-col">
-                <TabsList className="w-fit mx-auto">
-                  <TabsTrigger value="tree" className="gap-1.5">
-                    <Network className="h-4 w-4" />
-                    Tree
-                  </TabsTrigger>
-                  <TabsTrigger value="json" className="gap-1.5">
-                    <Braces className="h-4 w-4" />
-                    JSON
-                  </TabsTrigger>
-                </TabsList>
+                  <TabsList className="w-fit">
+                    <TabsTrigger value="tree" className="gap-1.5">
+                      <Network className="h-4 w-4" />
+                      Tree
+                    </TabsTrigger>
+                    <TabsTrigger value="json" className="gap-1.5">
+                      <Braces className="h-4 w-4" />
+                      JSON
+                    </TabsTrigger>
+                  </TabsList>
 
-                <div className="flex-1 mt-3 overflow-hidden">
+                  {/* spacer to balance the left button */}
+                  <div className="w-[100px]" />
+                </div>
+
+                <div className="flex-1 overflow-hidden">
                   <TabsContent value="tree" className="h-full m-0">
                     {treeContent}
                   </TabsContent>

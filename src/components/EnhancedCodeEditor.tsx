@@ -15,7 +15,7 @@ import { foldAll, unfoldAll } from '@codemirror/language';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useIsDarkMode } from '@/hooks/useIsDarkMode';
-import { darkTheme } from '@/lib/editorTheme';
+import { darkTheme, lightTheme } from '@/lib/editorTheme';
 
 interface EnhancedCodeEditorProps {
   value: string;
@@ -87,7 +87,7 @@ export const EnhancedCodeEditor: React.FC<EnhancedCodeEditorProps> = ({
           ref={editorRef}
           value={value}
           height="100%"
-          theme={isDark ? darkTheme : 'light'}
+          theme={isDark ? darkTheme : lightTheme}
           extensions={extensions}
           onChange={onChange}
           onFocus={() => {

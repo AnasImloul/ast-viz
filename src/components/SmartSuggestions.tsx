@@ -60,20 +60,20 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
   const getColorClass = (type: GrammarSuggestion['type']) => {
     switch (type) {
       case 'error':
-        return 'text-red-600 dark:text-red-400';
+        return 'text-bad';
       case 'warning':
-        return 'text-orange-600 dark:text-orange-400';
+        return 'text-primary';
       case 'info':
-        return 'text-blue-600 dark:text-blue-400';
+        return 'text-accent2';
       default:
-        return 'text-slate-600 dark:text-slate-400';
+        return 'text-muted-foreground';
     }
   };
 
   if (visibleSuggestions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-6 text-center border-2 border-dashed rounded-lg">
-        <CheckCircle2 className="h-10 w-10 text-green-500 mb-2" />
+        <CheckCircle2 className="h-10 w-10 text-good mb-2" />
         <p className="font-medium text-sm">All good!</p>
         <p className="text-xs text-muted-foreground mt-1">
           No issues or suggestions for your grammar

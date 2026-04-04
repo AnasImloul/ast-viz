@@ -4,6 +4,27 @@ import { ArrowLeft, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 
+const AstLogo: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" className={className} aria-hidden="true">
+    <style>{`
+      .logo-bg     { fill: #f7f5f0; }
+      .logo-edge   { stroke: #c9501f; stroke-width: 1.8; stroke-linecap: round; }
+      .logo-node   { fill: #c9501f; }
+      .logo-hollow { fill: #f7f5f0; stroke: #c9501f; stroke-width: 1.8; }
+      .dark .logo-bg     { fill: #0e0c0a; }
+      .dark .logo-edge   { stroke: #e8613a; }
+      .dark .logo-node   { fill: #e8613a; }
+      .dark .logo-hollow { fill: #0e0c0a; stroke: #e8613a; }
+    `}</style>
+    <rect className="logo-bg" width="32" height="32" rx="7"/>
+    <line className="logo-edge" x1="16" y1="10" x2="9"  y2="21"/>
+    <line className="logo-edge" x1="16" y1="10" x2="23" y2="21"/>
+    <circle className="logo-hollow" cx="9"  cy="22" r="3.2"/>
+    <circle className="logo-hollow" cx="23" cy="22" r="3.2"/>
+    <circle className="logo-node"   cx="16" cy="9"  r="3.5"/>
+  </svg>
+);
+
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -24,9 +45,12 @@ const AppLayout: React.FC = () => {
         <div className="container mx-auto px-3 hd:px-6 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 hd:gap-4 min-w-0">
-              <h1 className="text-base hd:text-lg font-semibold text-foreground shrink-0">
-                AST Visualizer
-              </h1>
+              <div className="flex items-center gap-2 shrink-0">
+                <AstLogo className="h-7 w-7" />
+                <h1 className="text-base hd:text-lg font-semibold text-foreground">
+                  AST Visualizer
+                </h1>
+              </div>
 
               {isVisualizePage && (
                 <>

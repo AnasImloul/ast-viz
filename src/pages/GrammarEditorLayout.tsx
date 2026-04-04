@@ -159,9 +159,8 @@ const GrammarEditorLayout: React.FC = () => {
           </Button>
           <Button
             onClick={handleContinue}
-            size="sm"
             disabled={!grammarText.trim()}
-            className="gap-1 px-2 hd:px-3"
+            className="gap-1.5 px-3 hd:px-4 font-semibold"
             title="Visualize"
           >
             <span className="hidden hd:inline">Visualize</span>
@@ -202,15 +201,15 @@ const GrammarEditorLayout: React.FC = () => {
           </div>
 
           <Card className={`flex-1 flex flex-col overflow-hidden min-h-0 border transition-colors ${
-            grammarValidation?.valid ? 'border-green-500/50' :
-            grammarValidation?.error ? 'border-red-500/50' : ''
+            grammarValidation?.valid ? 'border-good/50' :
+            grammarValidation?.error ? 'border-bad/50' : ''
           }`}>
             <CardHeader className="pb-2 flex-none px-3 sm:px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="hidden sm:block text-base">Ohm.js Grammar</CardTitle>
                 <div className="flex items-center gap-2" role="status" aria-live="polite">
                   {grammarValidation?.valid && (
-                    <span className="text-xs text-green-600 dark:text-green-400">
+                    <span className="text-xs text-good">
                       Valid
                     </span>
                   )}

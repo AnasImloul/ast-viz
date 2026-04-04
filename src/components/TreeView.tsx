@@ -67,7 +67,7 @@ const convertToCytoscape = (
   const width = Math.max(displayName.length * charWidth + padding, 50);
   const height = 28;
   
-  const color = isCollapsed ? '#8b5cf6' : isTerminal ? '#06b6d4' : '#3b82f6';
+  const color = isCollapsed ? '#4caf82' : isTerminal ? '#7a9ab5' : '#a87a3a';
   
   nodes.push({
     data: {
@@ -160,14 +160,14 @@ const TreeView: React.FC<TreeViewProps> = ({
         'text-wrap': 'none',
         'text-max-width': '150px',
         'border-width': 1,
-        'border-color': isDark ? '#334155' : '#e2e8f0',
+        'border-color': isDark ? '#242430' : '#d5d0c6',
         'cursor': 'pointer',
       },
     },
     {
       selector: 'node:active',
       style: {
-        'overlay-color': '#3b82f6',
+        'overlay-color': '#e8613a',
         'overlay-opacity': 0.3,
         'overlay-padding': 4,
       },
@@ -177,11 +177,11 @@ const TreeView: React.FC<TreeViewProps> = ({
       style: {
         'source-label': 'data(valueLabel)',
         'source-text-offset': 25,
-        'source-text-background-color': isDark ? '#1e293b' : '#f1f5f9',
+        'source-text-background-color': isDark ? '#141210' : '#f0ede6',
         'source-text-background-opacity': 0.95,
         'source-text-background-padding': '3px',
         'source-text-background-shape': 'roundrectangle',
-        'color': isDark ? '#e2e8f0' : '#1e293b',
+        'source-text-color': isDark ? '#e8e6e0' : '#1c1a16',
         'font-size': '10px',
       },
     },
@@ -202,8 +202,8 @@ const TreeView: React.FC<TreeViewProps> = ({
       selector: 'edge',
       style: {
         'width': 1.5,
-        'line-color': isDark ? '#475569' : '#94a3b8',
-        'target-arrow-color': isDark ? '#475569' : '#94a3b8',
+        'line-color': isDark ? '#8a8880' : '#7a756d',
+        'target-arrow-color': isDark ? '#8a8880' : '#7a756d',
         'target-arrow-shape': 'triangle',
         'curve-style': 'bezier',
         'arrow-scale': 0.8,
@@ -461,17 +461,17 @@ const TreeView: React.FC<TreeViewProps> = ({
         <div className="absolute top-4 right-4 text-xs text-muted-foreground bg-background/90 px-3 py-2 rounded border">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-[#3b82f6]" />
+              <div className="w-3 h-3 rounded bg-[#a87a3a]" />
               <span>Branch</span>
             </div>
             {optimizeEnabled && (
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-[#8b5cf6]" />
+                <div className="w-3 h-3 rounded bg-[#4caf82]" />
                 <span>Collapsed</span>
               </div>
             )}
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-[#06b6d4]" />
+              <div className="w-3 h-3 rounded bg-[#7a9ab5]" />
               <span>Terminal</span>
             </div>
           </div>
