@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="#0f172a"/>
+
+  <!-- Edges: root → children -->
+  <line x1="16"   y1="10.75" x2="9.94"  y2="21.25" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="16"   y1="10.75" x2="22.06" y2="21.25" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Root node -->
+  <circle cx="16"    cy="10.75" r="3" fill="#3b82f6"/>
+
+  <!-- Child nodes -->
+  <circle cx="9.94"  cy="21.25" r="3" fill="#60a5fa"/>
+  <circle cx="22.06" cy="21.25" r="3" fill="#60a5fa"/>
+</svg>
