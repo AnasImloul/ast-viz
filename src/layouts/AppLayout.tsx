@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import SeoHead from '@/components/SeoHead';
 import { useTheme } from '@/hooks/useTheme';
 
 const AstLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -34,6 +35,7 @@ const AppLayout: React.FC = () => {
   
   return (
     <div className="h-screen flex flex-col bg-background">
+      <SeoHead />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-background focus:border focus:rounded-md focus:m-2 focus:text-sm focus:font-medium"

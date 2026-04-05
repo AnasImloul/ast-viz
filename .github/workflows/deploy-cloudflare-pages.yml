@@ -42,6 +42,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          SITEMAP_BASE_URL: https://imloul.com/tools/ast-viz
         run: npm run build
 
       - name: Check if Pages project exists
